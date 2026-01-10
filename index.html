@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>RaceMann Pilot — RN табло</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, system-ui, Segoe UI, Roboto, Arial, sans-serif;
+      background:#07080c; color:#eef0f4;
+    }
+
+    /* ===== Setup screen ===== */
+    .wrap { max-width: 980px; margin: 0 auto; padding: 14px; padding-bottom: 24px; }
+    .card {
+      border:1px solid #262b35;
+      border-radius: 18px;
+      padding: 12px;
+      background:#10131a;
+      margin-top: 12px;
+    }
+    h1 { font-size: 16px; margin: 0; font-weight: 900; letter-spacing: -0.02em; }
+    .muted { color:#9aa3ad; font-size: 13px; line-height: 1.35; }
+
+    label { display:block; font-weight: 900; margin-bottom: 6px; font-size: 12px; color:#cdd3dc; }
+    input, button {
+      font-size: 16px; padding: 12px 12px;
+      border-radius: 14px; border: 1px solid #262b35;
+      background:#0b0e14; color:#eef0f4;
+      width: 100%;
+    }
+    input::placeholder { color:#6f7782; }
+    button {
+      cursor:pointer; font-weight: 900;
+      background:#1f6feb; border-color:#1f6feb;
+    }
+    button.secondary { background:#0b0e14; border-color:#262b35; }
+    button:disabled { opacity:.6; cursor:not-allowed; }
+    .row { display:flex; gap:10px; flex-wrap: wrap; align-items: end; }
+    .row > * { flex: 1 1 260px; }
+    .smallnote { margin-top: 8px; color:#9aa3ad; font-size: 12px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+    .pill {
+      display:inline-flex; align-items:center; gap:8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border:1px solid #262b35;
+      color:#9aa3ad;
+      font-size: 12px;
+      background:#0b0e14;
+    }
+    .dot { width: 10px; height: 10px; border-radius: 999px; background:#666; display:inline-block; }
+    .dot.ok { background:#26a269; }
+    .dot.bad { background:#d13212; }
+
+    /* ===== Pilot screen ===== */
+    .pilot {
+      min-height: 100svh;
+      padding: 14px;
+      padding-bottom: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .pilotTopBar {
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .pilotTitle {
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap: wrap;
+    }
+    .pilotTitle b { font-size: 13px; color:#cdd3dc; }
+    .pilotMeta { color:#9aa3ad; font-size: 12px; }
+
+    .board { flex: 1; display:flex; flex-direction: column; gap: 12px; }
+
+    .tile {
+      border:1px solid #262b35;
+      border-radius: 22px;
+      background:#0b0e14;
+      padding: 14px;
+    }
+    .tile .t { color:#9aa3ad; font-size: 12px; font-weight: 900; letter-spacing:.02em; }
+    .tile .v {
+      font-weight: 1000;
+      letter-spacing: -0.03em;
+      margin-top: 6px;
+      line-height: 1;
+      transform-origin: 50% 65%;
+      will-change: transform, filter, opacity;
+    }
+
+    /* Top row BIG: POS + LAST LAP */
+    .bigRow {
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .tile.big .v { font-size: 72px; }
+
+    /* Bottom row smaller: BEST PILOT + BEST RACE */
+    .smallRow {
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .tile.small .v { font-size: 46px; }
+
+    /* Colors */
+    .green  { color: #26a269; }
+    .purple { color: #bb6bff; }
+
+    /* Value change animation */
+    @keyframes pop {
+      0%   { transform: scale(1);   filter: brightness(1); opacity: 1; }
+      30%  { transform: scale(1.06);filter: brightness(1.25); opacity: 1; }
+      100% { transform: scale(1);   filter: brightness(1); opacity: 1; }
+    }
+    .pop { animation: pop 240ms ease-out; }
+
+    .btnRow { display:flex; gap:10px; flex-wrap: wrap; }
+    .btnRow button { width:auto; padding: 10px 12px; }
+
+    .hidden { display:none !important; }
+  </style>
+</head>
+<body>
+
+  <!-- ===== SETUP ===== -->
+  <div id="setupScreen" class="wrap">
+    <div class="card">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+        <h1>RaceMann Pilot — RN табло</h1>
+        <span class="pill"><span id="dotSetup" class="dot bad"></span><b id="statusSetup">idle</b></span>
+      </div>
+      <div class="muted" style="margin-top:8px">
+        Введи ссылку на заезд и RN, нажми <b>Открыть экран пилота</b>.
+      </div>
+
+      <div class="row" style="margin-top:12px">
+        <div style="flex: 3 1 420px;">
+          <label>Ссылка на заезд RaceMann</label>
+          <input id="raceUrl" placeholder="https://miks.racemann.com/Race/id/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx#race" />
+          <div class="smallnote">Можно вставлять с <span class="mono">#race</span> — мы сами закодируем.</div>
+        </div>
+
+        <div style="flex: 1 1 180px;">
+          <label>RN</label>
+          <input id="rn" inputmode="numeric" placeholder="например 1" />
+        </div>
+
+        <div style="flex: 1 1 260px;">
+          <label>&nbsp;</label>
+          <button id="btnOpen">Открыть экран пилота</button>
+        </div>
+      </div>
+
+      <div class="smallnote" style="margin-top:12px">
+        Worker “зашит” в коде: <span class="mono">racemann-api.vsmirnoff.workers.dev</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PILOT SCREEN ===== -->
+  <div id="pilotScreen" class="pilot hidden">
+    <div class="pilotTopBar">
+      <div class="pilotTitle">
+        <span class="pill"><span id="dotPilot" class="dot bad"></span><b id="statusPilot">disconnected</b></span>
+        <div>
+          <div><b>RN:</b> <span id="rnShow">—</span></div>
+          <div class="pilotMeta" id="metaLine">—</div>
+        </div>
+      </div>
+
+      <div class="btnRow">
+        <button id="btnBack" class="secondary">Назад</button>
+        <button id="btnDisconnect" class="secondary" disabled>Disconnect</button>
+      </div>
+    </div>
+
+    <div class="board">
+      <!-- Top row BIG -->
+      <div class="bigRow">
+        <div class="tile big">
+          <div class="t">Позиция</div>
+          <div id="kPos" class="v">—</div>
+        </div>
+
+        <div class="tile big">
+          <div class="t">Последний круг</div>
+          <div id="kLast" class="v">—</div>
+        </div>
+      </div>
+
+      <!-- Bottom row smaller -->
+      <div class="smallRow">
+        <div class="tile small">
+          <div class="t">Лучший круг пилота</div>
+          <div id="kBestPilot" class="v green">—</div>
+        </div>
+
+        <div class="tile small">
+          <div class="t">Лучший круг заезда</div>
+          <div id="kBestRace" class="v purple">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const WORKER_HOST = "racemann-api.vsmirnoff.workers.dev";
+  const $ = (id) => document.getElementById(id);
+
+  const LS_RACE = "rm_pilot_raceUrl";
+  const LS_RN = "rm_pilot_rn";
+
+  let ws = null;
+
+  const state = {
+    byRn: new Map(),
+    bestRaceMs: null,    // общий лучший круг (минимальный bl)
+    bestRaceRn: null,
+    lastFrameAt: null,
+    frames: 0,
+    compCount: 0,
+  };
+
+  // Wake Lock
+  let wakeLock = null;
+  async function enableWakeLock() {
+    try {
+      if (!("wakeLock" in navigator)) return false;
+      wakeLock = await navigator.wakeLock.request("screen");
+      return true;
+    } catch { return false; }
+  }
+  async function disableWakeLock() {
+    try { await wakeLock?.release?.(); } catch {}
+    wakeLock = null;
+  }
+
+  function setDot(where, ok) {
+    const dot = where === "setup" ? $("dotSetup") : $("dotPilot");
+    dot.classList.toggle("ok", !!ok);
+    dot.classList.toggle("bad", !ok);
+  }
+  function setStatus(where, text, ok) {
+    (where === "setup" ? $("statusSetup") : $("statusPilot")).textContent = text;
+    setDot(where, ok);
+  }
+
+  function safeJsonParse(s) {
+    if (typeof s !== "string") return null;
+    const t = s.trim();
+    if (!t) return null;
+    if (!(t.startsWith("{") || t.startsWith("["))) return null;
+    try { return JSON.parse(t); } catch { return null; }
+  }
+
+  function msToLap(ms) {
+    if (ms == null) return "—";
+    const n = Number(ms);
+    if (!Number.isFinite(n) || n <= 0) return "—";
+    const totalMs = Math.round(n);
+    const sec = Math.floor(totalMs / 1000);
+    const msPart = String(totalMs % 1000).padStart(3, "0");
+    const min = Math.floor(sec / 60);
+    const secPart = String(sec % 60).padStart(2, "0");
+    return `${min}:${secPart}.${msPart}`;
+  }
+
+  function extractRaceHubNewCommands(workerFrame) {
+    const out = [];
+    const arr = Array.isArray(workerFrame?.M) ? workerFrame.M : [];
+    for (const msg of arr) {
+      if (!msg) continue;
+      if (msg.H !== "RaceHub") continue;
+      if (msg.M !== "newCommand") continue;
+      const a0 = msg.A?.[0];
+      if (a0) out.push(a0);
+    }
+    return out;
+  }
+
+  function handleComp(cmd) {
+    if ((cmd?.Method || "").toLowerCase() !== "comp") return;
+
+    const c = cmd.Command;
+    if (!c || typeof c !== "object") return;
+
+    const rn = String(c.rn ?? c.RN ?? "").trim();
+    if (!rn) return;
+
+    const prev = state.byRn.get(rn) || {};
+
+    const bestLapMs = Number.isFinite(+c.bl) ? +c.bl : (prev.bestLapMs ?? null);
+
+    const next = {
+      rn,
+      position: Number.isFinite(+c.pos) ? +c.pos : (prev.position ?? null),
+      lastLapMs: Number.isFinite(+c.ll) ? +c.ll : (prev.lastLapMs ?? null),
+      bestLapMs,
+      updatedAt: Date.now(),
+    };
+
+    state.byRn.set(rn, next);
+
+    // update overall best of race
+    if (Number.isFinite(+bestLapMs) && +bestLapMs > 0) {
+      if (state.bestRaceMs == null || +bestLapMs < state.bestRaceMs) {
+        state.bestRaceMs = +bestLapMs;
+        state.bestRaceRn = rn;
+      }
+    }
+  }
+
+  function buildWorkerWsUrl(raceUrlRaw) {
+    const cleaned = raceUrlRaw.trim();
+    if (!cleaned) throw new Error("raceUrl empty");
+    const encoded = encodeURIComponent(cleaned);
+    return `wss://${WORKER_HOST}/ws?raceUrl=${encoded}&dropHb=1`;
+  }
+
+  // Animate + set text only when changed
+  function setValue(id, nextText) {
+    const el = $(id);
+    const prev = el.textContent;
+    if (prev === nextText) return;
+
+    el.textContent = nextText;
+
+    // restart animation
+    el.classList.remove("pop");
+    // force reflow to restart animation reliably
+    void el.offsetWidth;
+    el.classList.add("pop");
+  }
+
+  function renderPilot() {
+    const rn = String($("rn").value.trim());
+    $("rnShow").textContent = rn || "—";
+
+    const p = rn ? state.byRn.get(rn) : null;
+
+    // texts
+    const posText = (p?.position ?? "—") + "";
+    const lastText = p ? msToLap(p.lastLapMs) : "—";
+    const bestPilotText = p ? msToLap(p.bestLapMs) : "—";
+    const bestRaceText = msToLap(state.bestRaceMs);
+
+    setValue("kPos", posText);
+    setValue("kLast", lastText);
+    setValue("kBestPilot", bestPilotText);
+    setValue("kBestRace", bestRaceText);
+
+    // Variant 2:
+    // If pilot's best equals overall best of race -> pilot best turns PURPLE (overrides green)
+    const bestPilotMs = (p && Number.isFinite(+p.bestLapMs)) ? +p.bestLapMs : null;
+    const bestRaceMs = (state.bestRaceMs != null && Number.isFinite(+state.bestRaceMs)) ? +state.bestRaceMs : null;
+
+    const isPilotOverallBest = (bestPilotMs != null && bestRaceMs != null && bestPilotMs === bestRaceMs);
+
+    const bestPilotEl = $("kBestPilot");
+    bestPilotEl.classList.toggle("purple", isPilotOverallBest);
+    bestPilotEl.classList.toggle("green", !isPilotOverallBest);
+
+    // Meta (оставил как отладку; если захочешь — уберём)
+    const frames = state.frames;
+    const comp = state.compCount;
+    const last = state.lastFrameAt ? new Date(state.lastFrameAt).toLocaleTimeString() : "—";
+    $("metaLine").textContent = `Frames: ${frames} • comp: ${comp} • last: ${last}`;
+  }
+
+  function showSetup() {
+    $("pilotScreen").classList.add("hidden");
+    $("setupScreen").classList.remove("hidden");
+    setStatus("setup", "idle", false);
+  }
+
+  function showPilotConnecting() {
+    $("setupScreen").classList.add("hidden");
+    $("pilotScreen").classList.remove("hidden");
+    setStatus("pilot", "connecting…", false);
+  }
+
+  async function connect() {
+    const raceUrl = $("raceUrl").value.trim();
+    const rn = $("rn").value.trim();
+
+    if (!raceUrl) { alert("Вставь ссылку на заезд RaceMann"); return; }
+    if (!rn) { alert("Введи RN"); return; }
+
+    try {
+      localStorage.setItem(LS_RACE, raceUrl);
+      localStorage.setItem(LS_RN, rn);
+    } catch {}
+
+    let wsUrl;
+    try { wsUrl = buildWorkerWsUrl(raceUrl); }
+    catch (e) { alert("Некорректная ссылка: " + e); return; }
+
+    // reset state for new connect
+    state.frames = 0;
+    state.compCount = 0;
+    state.lastFrameAt = null;
+    state.bestRaceMs = null;
+    state.bestRaceRn = null;
+    state.byRn.clear();
+
+    showPilotConnecting();
+    disconnect(false);
+
+    try { ws = new WebSocket(wsUrl); }
+    catch (e) { alert("Не удалось создать WebSocket: " + e); showSetup(); return; }
+
+    $("btnDisconnect").disabled = false;
+
+    ws.addEventListener("open", async () => {
+      setStatus("pilot", "connected", true);
+      await enableWakeLock();
+    });
+
+    ws.addEventListener("close", async (e) => {
+      setStatus("pilot", `closed (${e.code})`, false);
+      $("btnDisconnect").disabled = true;
+      ws = null;
+      await disableWakeLock();
+    });
+
+    ws.addEventListener("error", () => {
+      setStatus("pilot", "error", false);
+    });
+
+    ws.addEventListener("message", (evt) => {
+      const text = typeof evt.data === "string" ? evt.data : "";
+      const msg = safeJsonParse(text);
+      if (!msg) return;
+
+      if (msg.type && msg.type !== "frame") return;
+
+      if (msg.type === "frame") {
+        state.frames += 1;
+        state.lastFrameAt = Date.now();
+
+        const cmds = extractRaceHubNewCommands(msg);
+        for (const cmd of cmds) {
+          if ((cmd?.Method || "").toLowerCase() === "comp") {
+            state.compCount += 1;
+            handleComp(cmd);
+          }
+        }
+        renderPilot();
+      }
+    });
+
+    renderPilot();
+  }
+
+  async function disconnect(goToSetup = true) {
+    if (ws) {
+      try { ws.close(1000, "bye"); } catch {}
+      ws = null;
+    }
+    $("btnDisconnect").disabled = true;
+    await disableWakeLock();
+    setStatus("pilot", "disconnected", false);
+    if (goToSetup) showSetup();
+  }
+
+  $("btnOpen").addEventListener("click", connect);
+  $("btnDisconnect").addEventListener("click", () => disconnect(true));
+  $("btnBack").addEventListener("click", () => disconnect(true));
+  $("rn").addEventListener("input", renderPilot);
+
+  try {
+    const savedRace = localStorage.getItem(LS_RACE);
+    const savedRn = localStorage.getItem(LS_RN);
+    if (savedRace) $("raceUrl").value = savedRace;
+    if (savedRn) $("rn").value = savedRn;
+  } catch {}
+
+  showSetup();
+
+  document.addEventListener("visibilitychange", async () => {
+    if (document.visibilityState === "visible" && ws) await enableWakeLock();
+  });
+})();
+</script>
+</body>
+</html>
