@@ -25,7 +25,7 @@
     .muted { color:#9aa3ad; font-size: 13px; line-height: 1.35; }
 
     label { display:block; font-weight: 900; margin-bottom: 6px; font-size: 12px; color:#cdd3dc; }
-    input, button {
+    input, button, select {
       font-size: 16px; padding: 12px 12px;
       border-radius: 14px; border: 1px solid #262b35;
       background:#0b0e14; color:#eef0f4;
@@ -146,16 +146,24 @@
       </div>
 
       <div class="muted" style="margin-top:8px">
-        Введи домен/ссылку (можно <span class="mono">.../home/last#race</span>), RN, нажми <b>Открыть экран пилота</b>.
+        Выбери картодром, укажи RN, нажми <b>Открыть экран пилота</b>.
         <br/>Автосмена заезда включена: если сменится “last”, мы переподключимся сами.
       </div>
 
       <div class="row" style="margin-top:12px">
         <div style="flex: 3 1 420px;">
-          <label>Домен / ссылка</label>
-          <input id="raceInput" placeholder="miks.racemann.com или https://miks.racemann.com/home/last#race" />
-          <div class="smallnote">
-            Можно и прямую ссылку: <span class="mono">https://miks.racemann.com/Race/id/&lt;GUID&gt;#race</span>
+          <label>Картодром</label>
+          <select id="trackSelect">
+            <option value="miks" selected>MIKS Karting</option>
+            <option value="lonato">Lonato</option>
+            <option value="dozari">Dozari</option>
+            <option value="custom">Другое (вставить ссылку)</option>
+          </select>
+
+          <div style="margin-top:10px">
+            <label>Домен / ссылка</label>
+            <input id="raceInput" placeholder="https://miks.racemann.com" />
+            <div class="smallnote">Для стандартных картодромов заполняется автоматически</div>
           </div>
         </div>
 
@@ -232,6 +240,16 @@
 
   // ✅ How often to check "last" (ms)
   const AUTO_RESOLVE_INTERVAL_MS = 12000;
+
+  // ✅ Track presets
+  const TRACKS = {
+    miks:   "https://miks.racemann.com",
+    lonato: "https://lonato.racemann.com",
+    dozari: "https://dozari.racemann.com",
+  };
+
+  // ✅ Store last chosen track
+  const LS_TRACK = "rm_pilot_track";
 
   const $ = (id) => document.getElementById(id);
 
@@ -393,7 +411,6 @@
     const s = (input || "").trim();
     if (!s) throw new Error("Пустая ссылка/домен");
 
-    // if already GUID link — no need to resolve, but we still can autoswitch based on its origin
     if (isGuidRaceUrl(s)) {
       log("setup", "GUID link detected, skip resolve");
       const origin = toOriginFromInput(s);
@@ -485,7 +502,6 @@
     if (!origin) return;
 
     autoTimer = setInterval(async () => {
-      // only when pilot screen is active (and we have a connection attempt)
       if (!currentOrigin) return;
       if (autoResolving) return;
 
@@ -500,7 +516,6 @@
           await reconnectToNewRace(newRaceUrl, newRaceId);
         }
       } catch (e) {
-        // не рвём соединение при временных ошибках resolve
         log("pilot", "AUTO: resolve failed:", String(e?.message || e));
       } finally {
         autoResolving = false;
@@ -511,16 +526,13 @@
   }
 
   async function reconnectToNewRace(newRaceUrl, newRaceId) {
-    // same RN, same screen — just reconnect WS
     currentRaceUrl = newRaceUrl;
     currentRaceId = newRaceId;
 
     resetRaceState();
-
-    // close existing ws but stay on pilot screen
     await disconnect(false);
-
     await connectWsOnly(newRaceUrl);
+    startAutoSwitch(currentOrigin);
   }
 
   async function connectWsOnly(raceUrl) {
@@ -599,10 +611,9 @@
     log("setup", "WORKER_HOST =", WORKER_HOST);
     log("setup", "Input =", input);
 
-    if (!input) { alert("Введи домен/ссылку (например miks.racemann.com)"); return; }
+    if (!input) { alert("Выбери картодром или введи ссылку"); return; }
     if (!rn) { alert("Введи RN"); return; }
 
-    // 1) resolve GUID if needed
     let resolved;
     try {
       resolved = await resolveRaceUrlIfNeeded(input);
@@ -625,12 +636,8 @@
     currentRaceId  = resolved.raceId || extractRaceIdFromRaceUrl(resolved.raceUrl);
 
     resetRaceState();
-
-    // 2) connect WS
     await disconnect(false);
     await connectWsOnly(currentRaceUrl);
-
-    // 3) enable auto switch if we have origin
     startAutoSwitch(currentOrigin);
   }
 
@@ -646,7 +653,6 @@
     setStatus("pilot", "disconnected", false);
 
     if (goToSetup) {
-      // clear current race context when leaving pilot screen
       currentOrigin = null;
       currentRaceId = null;
       currentRaceUrl = null;
@@ -654,19 +660,60 @@
     }
   }
 
+  // ===== Track dropdown logic =====
+  const trackSelect = $("trackSelect");
+  const raceInput = $("raceInput");
+
+  function applyTrackSelection() {
+    const v = trackSelect.value;
+    if (v === "custom") {
+      raceInput.disabled = false;
+      raceInput.placeholder = "Вставь ссылку RaceMann";
+      // Не трогаем текущее значение: пусть пользователь вставит
+    } else {
+      raceInput.disabled = true;
+      raceInput.value = TRACKS[v] || "https://miks.racemann.com";
+    }
+  }
+
+  // Buttons
   $("btnOpen").addEventListener("click", connect);
   $("btnDisconnect").addEventListener("click", () => disconnect(true));
   $("btnBack").addEventListener("click", () => disconnect(true));
   $("rn").addEventListener("input", renderPilot);
 
+  // UI init
   $("workerLabel").textContent = WORKER_HOST;
 
+  // Restore saved RN
   try {
-    const savedInp = localStorage.getItem(LS_INP);
     const savedRn = localStorage.getItem(LS_RN);
-    if (savedInp) $("raceInput").value = savedInp;
     if (savedRn) $("rn").value = savedRn;
   } catch {}
+
+  // Restore dropdown selection first
+  try {
+    const savedTrack = localStorage.getItem(LS_TRACK);
+    if (savedTrack && (savedTrack in TRACKS || savedTrack === "custom")) {
+      trackSelect.value = savedTrack;
+    }
+  } catch {}
+
+  applyTrackSelection();
+
+  // If user had custom input saved, restore it only in custom mode
+  try {
+    const savedInp = localStorage.getItem(LS_INP);
+    if (savedInp && trackSelect.value === "custom") {
+      raceInput.value = savedInp;
+      raceInput.disabled = false;
+    }
+  } catch {}
+
+  trackSelect.addEventListener("change", () => {
+    try { localStorage.setItem(LS_TRACK, trackSelect.value); } catch {}
+    applyTrackSelection();
+  });
 
   $("setupLog").textContent = "";
   log("setup", "Ready. Worker =", WORKER_HOST);
