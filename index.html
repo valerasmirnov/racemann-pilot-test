@@ -25,7 +25,7 @@
     .muted { color:#9aa3ad; font-size: 13px; line-height: 1.35; }
 
     label { display:block; font-weight: 900; margin-bottom: 6px; font-size: 12px; color:#cdd3dc; }
-    input, button, textarea {
+    input, button {
       font-size: 16px; padding: 12px 12px;
       border-radius: 14px; border: 1px solid #262b35;
       background:#0b0e14; color:#eef0f4;
@@ -147,6 +147,7 @@
 
       <div class="muted" style="margin-top:8px">
         Введи домен/ссылку (можно <span class="mono">.../home/last#race</span>), RN, нажми <b>Открыть экран пилота</b>.
+        <br/>Автосмена заезда включена: если сменится “last”, мы переподключимся сами.
       </div>
 
       <div class="row" style="margin-top:12px">
@@ -229,12 +230,22 @@
   const qs = new URLSearchParams(location.search);
   const WORKER_HOST = (qs.get("worker") || "racemann-bridge-test.vsmirnoff.workers.dev").trim();
 
+  // ✅ How often to check "last" (ms)
+  const AUTO_RESOLVE_INTERVAL_MS = 12000;
+
   const $ = (id) => document.getElementById(id);
 
   const LS_INP = "rm_pilot_input";
-  const LS_RN = "rm_pilot_rn";
+  const LS_RN  = "rm_pilot_rn";
 
   let ws = null;
+
+  // ✅ autoswitch state
+  let autoTimer = null;
+  let autoResolving = false;
+  let currentOrigin = null;
+  let currentRaceId = null;
+  let currentRaceUrl = null;
 
   const state = {
     byRn: new Map(),
@@ -321,7 +332,6 @@
     if (!rn) return;
 
     const prev = state.byRn.get(rn) || {};
-
     const bestLapMs = Number.isFinite(+c.bl) ? +c.bl : (prev.bestLapMs ?? null);
 
     const next = {
@@ -353,43 +363,49 @@
     return /\/Race\/id\/[0-9a-fA-F-]{36}/.test(String(s || ""));
   }
 
+  function extractRaceIdFromRaceUrl(s) {
+    const m = String(s || "").match(/\/Race\/id\/([0-9a-fA-F-]{36})/);
+    return m ? m[1] : null;
+  }
+
   function toOriginFromInput(s) {
-    // input can be: domain, https://domain/home/last#race, https://domain, etc.
     const t = (s || "").trim();
     if (!t) return "";
     try {
       const u = new URL(t.startsWith("http") ? t : "https://" + t);
       return u.origin;
     } catch {
-      // fallback
       return t.startsWith("http") ? t : ("https://" + t);
     }
+  }
+
+  async function resolveRaceUrlFromOrigin(origin) {
+    const httpBase = `https://${WORKER_HOST}`;
+    const url = `${httpBase}/resolve?origin=${encodeURIComponent(origin)}`;
+    const r = await fetch(url, { cache: "no-store" });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.ok) throw new Error(j.error || `resolve failed (${r.status})`);
+    if (!j.raceUrl) throw new Error("resolve ok but raceUrl missing");
+    return j;
   }
 
   async function resolveRaceUrlIfNeeded(input) {
     const s = (input || "").trim();
     if (!s) throw new Error("Пустая ссылка/домен");
 
+    // if already GUID link — no need to resolve, but we still can autoswitch based on its origin
     if (isGuidRaceUrl(s)) {
       log("setup", "GUID link detected, skip resolve");
-      return s;
+      const origin = toOriginFromInput(s);
+      return { origin, raceUrl: s, raceId: extractRaceIdFromRaceUrl(s) };
     }
 
     const origin = toOriginFromInput(s);
-    const httpBase = `https://${WORKER_HOST}`;
-
-    log("setup", "Resolving via worker:", `${httpBase}/resolve?origin=${origin}`);
+    log("setup", "Resolving via worker for origin:", origin);
     setStatus("setup", "resolving…", false);
 
-    const r = await fetch(`${httpBase}/resolve?origin=${encodeURIComponent(origin)}`, { cache: "no-store" });
-    const j = await r.json().catch(() => ({}));
-
-    log("setup", "Resolve response:", j);
-
-    if (!r.ok || !j.ok) throw new Error(j.error || `resolve failed (${r.status})`);
-    if (!j.raceUrl) throw new Error("resolve ok but raceUrl missing");
-
-    return j.raceUrl;
+    const j = await resolveRaceUrlFromOrigin(origin);
+    return { origin, raceUrl: j.raceUrl, raceId: j.raceId };
   }
 
   function setValue(id, nextText) {
@@ -430,7 +446,8 @@
     const frames = state.frames;
     const comp = state.compCount;
     const last = state.lastFrameAt ? new Date(state.lastFrameAt).toLocaleTimeString() : "—";
-    $("metaLine").textContent = `Frames: ${frames} • comp: ${comp} • last: ${last}`;
+    const rid = currentRaceId ? currentRaceId.slice(0, 8) : "—";
+    $("metaLine").textContent = `Race: ${rid} • Frames: ${frames} • comp: ${comp} • last: ${last}`;
   }
 
   function showSetup() {
@@ -445,63 +462,83 @@
     setStatus("pilot", "connecting…", false);
   }
 
-  async function connect() {
-    const input = $("raceInput").value.trim();
-    const rn = $("rn").value.trim();
-
-    $("setupLog").textContent = "";
-    $("pilotLog").textContent = "";
-    log("setup", "WORKER_HOST =", WORKER_HOST);
-    log("setup", "Input =", input);
-
-    if (!input) { alert("Введи домен/ссылку (например miks.racemann.com)"); return; }
-    if (!rn) { alert("Введи RN"); return; }
-
-    // 1) resolve GUID if needed
-    let raceUrl;
-    try {
-      raceUrl = await resolveRaceUrlIfNeeded(input);
-      log("setup", "Resolved raceUrl =", raceUrl);
-      setStatus("setup", "resolved", true);
-    } catch (e) {
-      setStatus("setup", "resolve failed", false);
-      log("setup", "Resolve failed:", String(e?.message || e));
-      alert("Не удалось определить текущий заезд: " + (e?.message || e));
-      return;
-    }
-
-    try {
-      localStorage.setItem(LS_INP, input);
-      localStorage.setItem(LS_RN, rn);
-    } catch {}
-
-    // 2) build ws
-    let wsUrl;
-    try { wsUrl = buildWorkerWsUrl(raceUrl); }
-    catch (e) {
-      log("setup", "WS url build error:", String(e));
-      alert("Некорректная ссылка: " + e);
-      return;
-    }
-
-    // reset state
+  function resetRaceState() {
     state.frames = 0;
     state.compCount = 0;
     state.lastFrameAt = null;
     state.bestRaceMs = null;
     state.bestRaceRn = null;
     state.byRn.clear();
+    renderPilot();
+  }
 
-    showPilotConnecting();
+  function stopAutoSwitch() {
+    if (autoTimer) {
+      clearInterval(autoTimer);
+      autoTimer = null;
+    }
+    autoResolving = false;
+  }
+
+  function startAutoSwitch(origin) {
+    stopAutoSwitch();
+    if (!origin) return;
+
+    autoTimer = setInterval(async () => {
+      // only when pilot screen is active (and we have a connection attempt)
+      if (!currentOrigin) return;
+      if (autoResolving) return;
+
+      autoResolving = true;
+      try {
+        const j = await resolveRaceUrlFromOrigin(currentOrigin);
+        const newRaceId = j.raceId;
+        const newRaceUrl = j.raceUrl;
+
+        if (newRaceId && currentRaceId && newRaceId !== currentRaceId) {
+          log("pilot", "AUTO: race changed!", { from: currentRaceId, to: newRaceId });
+          await reconnectToNewRace(newRaceUrl, newRaceId);
+        }
+      } catch (e) {
+        // не рвём соединение при временных ошибках resolve
+        log("pilot", "AUTO: resolve failed:", String(e?.message || e));
+      } finally {
+        autoResolving = false;
+      }
+    }, AUTO_RESOLVE_INTERVAL_MS);
+
+    log("pilot", `AUTO: enabled (${Math.round(AUTO_RESOLVE_INTERVAL_MS/1000)}s) for origin ${origin}`);
+  }
+
+  async function reconnectToNewRace(newRaceUrl, newRaceId) {
+    // same RN, same screen — just reconnect WS
+    currentRaceUrl = newRaceUrl;
+    currentRaceId = newRaceId;
+
+    resetRaceState();
+
+    // close existing ws but stay on pilot screen
     await disconnect(false);
 
+    await connectWsOnly(newRaceUrl);
+  }
+
+  async function connectWsOnly(raceUrl) {
+    let wsUrl;
+    try { wsUrl = buildWorkerWsUrl(raceUrl); }
+    catch (e) {
+      log("pilot", "WS url build error:", String(e));
+      setStatus("pilot", "ws url error", false);
+      return;
+    }
+
+    showPilotConnecting();
     log("pilot", "Connecting WS:", wsUrl);
 
     try { ws = new WebSocket(wsUrl); }
     catch (e) {
       log("pilot", "WebSocket ctor error:", String(e));
-      alert("Не удалось создать WebSocket: " + e);
-      showSetup();
+      setStatus("pilot", "ws ctor error", false);
       return;
     }
 
@@ -511,6 +548,7 @@
       setStatus("pilot", "connected", true);
       log("pilot", "WS open");
       await enableWakeLock();
+      renderPilot();
     });
 
     ws.addEventListener("close", async (e) => {
@@ -550,11 +588,55 @@
         renderPilot();
       }
     });
+  }
 
-    renderPilot();
+  async function connect() {
+    const input = $("raceInput").value.trim();
+    const rn = $("rn").value.trim();
+
+    $("setupLog").textContent = "";
+    $("pilotLog").textContent = "";
+    log("setup", "WORKER_HOST =", WORKER_HOST);
+    log("setup", "Input =", input);
+
+    if (!input) { alert("Введи домен/ссылку (например miks.racemann.com)"); return; }
+    if (!rn) { alert("Введи RN"); return; }
+
+    // 1) resolve GUID if needed
+    let resolved;
+    try {
+      resolved = await resolveRaceUrlIfNeeded(input);
+      log("setup", "Resolved:", resolved);
+      setStatus("setup", "resolved", true);
+    } catch (e) {
+      setStatus("setup", "resolve failed", false);
+      log("setup", "Resolve failed:", String(e?.message || e));
+      alert("Не удалось определить текущий заезд: " + (e?.message || e));
+      return;
+    }
+
+    try {
+      localStorage.setItem(LS_INP, input);
+      localStorage.setItem(LS_RN, rn);
+    } catch {}
+
+    currentOrigin  = resolved.origin;
+    currentRaceUrl = resolved.raceUrl;
+    currentRaceId  = resolved.raceId || extractRaceIdFromRaceUrl(resolved.raceUrl);
+
+    resetRaceState();
+
+    // 2) connect WS
+    await disconnect(false);
+    await connectWsOnly(currentRaceUrl);
+
+    // 3) enable auto switch if we have origin
+    startAutoSwitch(currentOrigin);
   }
 
   async function disconnect(goToSetup = true) {
+    stopAutoSwitch();
+
     if (ws) {
       try { ws.close(1000, "bye"); } catch {}
       ws = null;
@@ -562,7 +644,14 @@
     $("btnDisconnect").disabled = true;
     await disableWakeLock();
     setStatus("pilot", "disconnected", false);
-    if (goToSetup) showSetup();
+
+    if (goToSetup) {
+      // clear current race context when leaving pilot screen
+      currentOrigin = null;
+      currentRaceId = null;
+      currentRaceUrl = null;
+      showSetup();
+    }
   }
 
   $("btnOpen").addEventListener("click", connect);
