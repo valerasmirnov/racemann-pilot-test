@@ -7,132 +7,64 @@
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: -apple-system, system-ui, Segoe UI, Roboto, Arial, sans-serif;
-      background:#07080c; color:#eef0f4;
-    }
+    body { margin:0; font-family:-apple-system,system-ui,Segoe UI,Roboto,Arial,sans-serif; background:#07080c; color:#eef0f4; }
 
     .wrap { max-width: 980px; margin: 0 auto; padding: 14px; padding-bottom: 24px; }
-    .card {
-      border:1px solid #262b35;
-      border-radius: 18px;
-      padding: 12px;
-      background:#10131a;
-      margin-top: 12px;
-    }
-    h1 { font-size: 16px; margin: 0; font-weight: 900; letter-spacing: -0.02em; }
-    .muted { color:#9aa3ad; font-size: 13px; line-height: 1.35; }
+    .card { border:1px solid #262b35; border-radius:18px; padding:12px; background:#10131a; margin-top:12px; }
+    h1 { font-size:16px; margin:0; font-weight:900; letter-spacing:-0.02em; }
+    .muted { color:#9aa3ad; font-size:13px; line-height:1.35; }
 
-    label { display:block; font-weight: 900; margin-bottom: 6px; font-size: 12px; color:#cdd3dc; }
+    label { display:block; font-weight:900; margin-bottom:6px; font-size:12px; color:#cdd3dc; }
     input, button, select {
-      font-size: 16px; padding: 12px 12px;
-      border-radius: 14px; border: 1px solid #262b35;
-      background:#0b0e14; color:#eef0f4;
-      width: 100%;
+      font-size:16px; padding:12px 12px;
+      border-radius:14px; border:1px solid #262b35;
+      background:#0b0e14; color:#eef0f4; width:100%;
     }
     input::placeholder { color:#6f7782; }
-    button {
-      cursor:pointer; font-weight: 900;
-      background:#1f6feb; border-color:#1f6feb;
-    }
+    button { cursor:pointer; font-weight:900; background:#1f6feb; border-color:#1f6feb; }
     button.secondary { background:#0b0e14; border-color:#262b35; }
     button:disabled { opacity:.6; cursor:not-allowed; }
 
-    .row { display:flex; gap:10px; flex-wrap: wrap; align-items: end; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:end; }
     .row > * { flex: 1 1 260px; }
-    .smallnote { margin-top: 8px; color:#9aa3ad; font-size: 12px; }
+    .smallnote { margin-top:8px; color:#9aa3ad; font-size:12px; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 
-    .pill {
-      display:inline-flex; align-items:center; gap:8px;
-      padding: 6px 10px;
-      border-radius: 999px;
-      border:1px solid #262b35;
-      color:#9aa3ad;
-      font-size: 12px;
-      background:#0b0e14;
-    }
-    .dot { width: 10px; height: 10px; border-radius: 999px; background:#666; display:inline-block; }
+    .pill { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px; border:1px solid #262b35; color:#9aa3ad; font-size:12px; background:#0b0e14; }
+    .dot { width:10px; height:10px; border-radius:999px; background:#666; display:inline-block; }
     .dot.ok { background:#26a269; }
     .dot.bad { background:#d13212; }
 
-    .pilot {
-      min-height: 100svh;
-      padding: 14px;
-      padding-bottom: 18px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-    .pilotTopBar {
-      display:flex;
-      align-items:center;
-      justify-content: space-between;
-      gap: 10px;
-    }
-    .pilotTitle {
-      display:flex;
-      align-items:center;
-      gap:10px;
-      flex-wrap: wrap;
-    }
-    .pilotTitle b { font-size: 13px; color:#cdd3dc; }
-    .pilotMeta { color:#9aa3ad; font-size: 12px; }
+    .pilot { min-height:100svh; padding:14px; padding-bottom:18px; display:flex; flex-direction:column; gap:12px; }
+    .pilotTopBar { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .pilotTitle { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .pilotTitle b { font-size:13px; color:#cdd3dc; }
+    .pilotMeta { color:#9aa3ad; font-size:12px; }
 
-    .board { flex: 1; display:flex; flex-direction: column; gap: 12px; }
+    .board { flex:1; display:flex; flex-direction:column; gap:12px; }
 
-    .tile {
-      border:1px solid #262b35;
-      border-radius: 22px;
-      background:#0b0e14;
-      padding: 14px;
-    }
-    .tile .t { color:#9aa3ad; font-size: 12px; font-weight: 900; letter-spacing:.02em; }
-    .tile .v {
-      font-weight: 1000;
-      letter-spacing: -0.03em;
-      margin-top: 6px;
-      line-height: 1;
-      transform-origin: 50% 65%;
-      will-change: transform, filter, opacity;
-    }
+    .tile { border:1px solid #262b35; border-radius:22px; background:#0b0e14; padding:14px; }
+    .tile .t { color:#9aa3ad; font-size:12px; font-weight:900; letter-spacing:.02em; }
+    .tile .v { font-weight:1000; letter-spacing:-0.03em; margin-top:6px; line-height:1; transform-origin:50% 65%; will-change:transform,filter,opacity; }
 
-    .bigRow { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .tile.big .v { font-size: 72px; }
+    .bigRow { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .tile.big .v { font-size:72px; }
 
-    .smallRow { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .tile.small .v { font-size: 46px; }
+    .smallRow { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .tile.small .v { font-size:46px; }
 
-    .green  { color: #26a269; }
-    .purple { color: #bb6bff; }
+    .green { color:#26a269; }
+    .purple { color:#bb6bff; }
 
-    @keyframes pop {
-      0%   { transform: scale(1);   filter: brightness(1); opacity: 1; }
-      30%  { transform: scale(1.06);filter: brightness(1.25); opacity: 1; }
-      100% { transform: scale(1);   filter: brightness(1); opacity: 1; }
-    }
+    @keyframes pop { 0%{transform:scale(1);filter:brightness(1);opacity:1;} 30%{transform:scale(1.06);filter:brightness(1.25);opacity:1;} 100%{transform:scale(1);filter:brightness(1);opacity:1;} }
     .pop { animation: pop 240ms ease-out; }
 
-    .btnRow { display:flex; gap:10px; flex-wrap: wrap; }
-    .btnRow button { width:auto; padding: 10px 12px; }
+    .btnRow { display:flex; gap:10px; flex-wrap:wrap; }
+    .btnRow button { width:auto; padding:10px 12px; }
 
     .hidden { display:none !important; }
 
-    .log {
-      margin-top: 10px;
-      font-size: 12px;
-      color:#cdd3dc;
-      line-height: 1.35;
-      white-space: pre-wrap;
-      word-break: break-word;
-      max-height: 210px;
-      overflow:auto;
-      background:#0b0e14;
-      border:1px solid #262b35;
-      border-radius: 14px;
-      padding: 10px;
-    }
+    .log { margin-top:10px; font-size:12px; color:#cdd3dc; line-height:1.35; white-space:pre-wrap; word-break:break-word; max-height:210px; overflow:auto; background:#0b0e14; border:1px solid #262b35; border-radius:14px; padding:10px; }
   </style>
 </head>
 <body>
@@ -198,6 +130,7 @@
       </div>
 
       <div class="btnRow">
+        <button id="btnReload" class="secondary" disabled>RELOAD</button>
         <button id="btnBack" class="secondary">Назад</button>
         <button id="btnDisconnect" class="secondary" disabled>Disconnect</button>
       </div>
@@ -253,12 +186,10 @@
 
   let ws = null;
 
-  // 🔒 Single source of truth for selected track origin / current race
   let currentOrigin = null;
   let currentRaceId = null;
   let currentRaceUrl = null;
 
-  // Autoswitch
   let autoTimer = null;
   let autoResolving = false;
 
@@ -280,7 +211,6 @@
     console.log(line);
   }
 
-  // Wake Lock
   let wakeLock = null;
   async function enableWakeLock() {
     try {
@@ -339,7 +269,6 @@
 
   function handleComp(cmd) {
     if ((cmd?.Method || "").toLowerCase() !== "comp") return;
-
     const c = cmd.Command;
     if (!c || typeof c !== "object") return;
 
@@ -374,26 +303,11 @@
     return `wss://${WORKER_HOST}/ws?raceUrl=${encoded}&dropHb=1`;
   }
 
-  function extractRaceIdFromRaceUrl(s) {
-    const m = String(s || "").match(/\/Race\/id\/([0-9a-fA-F-]{36})/);
-    return m ? m[1] : null;
-  }
-
-  // ✅ Only used ONCE at connect time to determine origin from selected track input
-  function toOriginFromInput(s) {
-    const t = (s || "").trim();
-    if (!t) return "";
-    const u = new URL(t.startsWith("http") ? t : "https://" + t);
-    return u.origin;
-  }
-
   async function resolveRaceUrlFromOrigin(origin) {
-    const httpBase = `https://${WORKER_HOST}`;
-    const url = `${httpBase}/resolve?origin=${encodeURIComponent(origin)}`;
+    const url = `https://${WORKER_HOST}/resolve?origin=${encodeURIComponent(origin)}`;
     const r = await fetch(url, { cache: "no-store" });
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.ok) throw new Error(j.error || `resolve failed (${r.status})`);
-    if (!j.raceUrl) throw new Error("resolve ok but raceUrl missing");
     return j;
   }
 
@@ -401,7 +315,6 @@
     const el = $(id);
     const prev = el.textContent;
     if (prev === nextText) return;
-
     el.textContent = nextText;
     el.classList.remove("pop");
     void el.offsetWidth;
@@ -414,15 +327,10 @@
 
     const p = rn ? state.byRn.get(rn) : null;
 
-    const posText = (p?.position ?? "—") + "";
-    const lastText = p ? msToLap(p.lastLapMs) : "—";
-    const bestPilotText = p ? msToLap(p.bestLapMs) : "—";
-    const bestRaceText = msToLap(state.bestRaceMs);
-
-    setValue("kPos", posText);
-    setValue("kLast", lastText);
-    setValue("kBestPilot", bestPilotText);
-    setValue("kBestRace", bestRaceText);
+    setValue("kPos", String(p?.position ?? "—"));
+    setValue("kLast", p ? msToLap(p.lastLapMs) : "—");
+    setValue("kBestPilot", p ? msToLap(p.bestLapMs) : "—");
+    setValue("kBestRace", msToLap(state.bestRaceMs));
 
     const bestPilotMs = (p && Number.isFinite(+p.bestLapMs)) ? +p.bestLapMs : null;
     const bestRaceMs = (state.bestRaceMs != null && Number.isFinite(+state.bestRaceMs)) ? +state.bestRaceMs : null;
@@ -476,14 +384,10 @@
 
       autoResolving = true;
       try {
-        // ✅ ALWAYS use currentOrigin (selected track), never recompute from input
         const j = await resolveRaceUrlFromOrigin(currentOrigin);
-        const newRaceId = j.raceId;
-        const newRaceUrl = j.raceUrl;
-
-        if (newRaceId && currentRaceId && newRaceId !== currentRaceId) {
-          log("pilot", "AUTO: race changed!", { from: currentRaceId, to: newRaceId });
-          await reconnectToNewRace(newRaceUrl, newRaceId);
+        if (j.raceId && j.raceId !== currentRaceId) {
+          log("pilot", "AUTO: race changed!", { from: currentRaceId, to: j.raceId });
+          await reconnectToNewRace(j.raceUrl, j.raceId);
         }
       } catch (e) {
         log("pilot", "AUTO: resolve failed:", String(e?.message || e));
@@ -506,6 +410,8 @@
   }
 
   async function connectWsOnly(raceUrl) {
+    $("btnReload").disabled = false;
+
     let wsUrl;
     try { wsUrl = buildWorkerWsUrl(raceUrl); }
     catch (e) {
@@ -535,7 +441,8 @@
     });
 
     ws.addEventListener("close", async (e) => {
-      setStatus("pilot", `closed (${e.code})`, false);
+      const hint = (e.code === 1006) ? " — жми RELOAD" : "";
+      setStatus("pilot", `closed (${e.code})${hint}`, false);
       log("pilot", "WS closed:", { code: e.code, reason: e.reason });
       $("btnDisconnect").disabled = true;
       ws = null;
@@ -577,9 +484,8 @@
     const rn = $("rn").value.trim();
     if (!rn) { alert("Введи RN"); return; }
 
-    // Determine input by track selection
     const track = $("trackSelect").value;
-    const input = track === "custom" ? $("raceInput").value.trim() : (TRACKS[track] || "https://miks.racemann.com");
+    const input = track === "custom" ? $("raceInput").value.trim() : (TRACKS[track] || TRACKS.miks);
     if (!input) { alert("Выбери картодром или введи ссылку"); return; }
 
     $("setupLog").textContent = "";
@@ -588,10 +494,10 @@
     log("setup", "Track =", track);
     log("setup", "Input =", input);
 
-    // 🔒 origin computed ONCE, stored forever until user leaves pilot
     try {
-      currentOrigin = toOriginFromInput(input);
-    } catch (e) {
+      const u = new URL(input.startsWith("http") ? input : ("https://" + input));
+      currentOrigin = u.origin;
+    } catch {
       alert("Некорректный домен/ссылка"); return;
     }
 
@@ -607,7 +513,7 @@
       return;
     }
 
-    currentRaceId = j.raceId || extractRaceIdFromRaceUrl(j.raceUrl);
+    currentRaceId = j.raceId;
     currentRaceUrl = j.raceUrl;
 
     log("setup", "Resolved:", { currentOrigin, currentRaceId, currentRaceUrl });
@@ -640,14 +546,22 @@
       currentOrigin = null;
       currentRaceId = null;
       currentRaceUrl = null;
+      $("btnReload").disabled = true;
       showSetup();
     } else {
-      // keep screen
       showPilot();
     }
   }
 
-  // ===== Track dropdown logic =====
+  async function reloadNow() {
+    if (!currentRaceUrl) return;
+    log("pilot", "RELOAD: reconnect to currentRaceUrl");
+    resetRaceState();
+    await disconnect(false);
+    await connectWsOnly(currentRaceUrl);
+    startAutoSwitch();
+  }
+
   const trackSelect = $("trackSelect");
   const raceInput = $("raceInput");
 
@@ -658,26 +572,23 @@
       raceInput.placeholder = "Вставь ссылку RaceMann";
     } else {
       raceInput.disabled = true;
-      raceInput.value = TRACKS[v] || "https://miks.racemann.com";
+      raceInput.value = TRACKS[v] || TRACKS.miks;
     }
   }
 
-  // Buttons
   $("btnOpen").addEventListener("click", connect);
   $("btnDisconnect").addEventListener("click", () => disconnect(true));
   $("btnBack").addEventListener("click", () => disconnect(true));
+  $("btnReload").addEventListener("click", reloadNow);
   $("rn").addEventListener("input", renderPilot);
 
-  // UI init
   $("workerLabel").textContent = WORKER_HOST;
 
-  // Restore saved RN
   try {
     const savedRn = localStorage.getItem(LS_RN);
     if (savedRn) $("rn").value = savedRn;
   } catch {}
 
-  // Restore dropdown
   try {
     const savedTrack = localStorage.getItem(LS_TRACK);
     if (savedTrack && (savedTrack in TRACKS || savedTrack === "custom")) trackSelect.value = savedTrack;
@@ -685,7 +596,6 @@
 
   applyTrackSelection();
 
-  // Restore custom input only if custom
   try {
     const savedInp = localStorage.getItem(LS_INP);
     if (savedInp && trackSelect.value === "custom") {
